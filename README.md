@@ -1,4 +1,4 @@
-# pitwall
+# Pitwall
 
 Uncertainty-aware race strategy decision engine for the 2024 Formula 1 Sao Paulo Grand Prix.
 
