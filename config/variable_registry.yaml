@@ -1,0 +1,409 @@
+# Variable registry for the Interlagos Decision Lab.
+#
+# This file is the SPECIFICATION half of the Step 12 data classification table:
+# what we intend each variable to be, where we think it comes from, and how we
+# plan to use it. It is written before execution.
+#
+# The MEASUREMENT half (present?, null fraction, dtype, resolution) is filled in
+# by scripts/run_data_audit.py against the loaded session and merged with this
+# file to produce data/audit/data_classification.csv.
+#
+# If a variable declared OBSERVED turns out to be absent or heavily null, the
+# audit flags a MISMATCH. That is the point of splitting the table in two: the
+# specification cannot be quietly edited to agree with the data.
+#
+# classification must be exactly one of:
+#   OBSERVED       measured and reported by the timing/telemetry feed
+#   DERIVED        computed deterministically from OBSERVED values
+#   ESTIMATED      fitted from data with a stated estimator and uncertainty
+#   ASSUMED        set by us from external knowledge, with a cited basis
+#   SIMULATED      drawn from a modeled distribution
+#   NOT_AVAILABLE  cannot be obtained from public sources
+#
+# resolver tells the audit how to check availability:
+#   laps_column:<NAME>      column of session.laps
+#   weather_column:<NAME>   column of session.weather_data
+#   table:<NAME>            a whole session table must be non-empty
+#   car_data:<NAME>         channel of session.car_data[driver]
+#   pos_data:<NAME>         channel of session.pos_data[driver]
+#   derived:<KEY>           resolved by a named Phase 0 feasibility check
+#   absent                  asserted to be obtainable from no loaded table
+#   deferred                no Phase 0 measurement; introduced in a later phase
+
+variables:
+
+  - name: lap_number
+    description: Race lap index for a driver
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:LapNumber
+    planned_use: Primary time index for race state; secondary to session time.
+    notes: float64 with NaN support in FastF1.
+
+  - name: driver
+    description: Three-letter driver abbreviation
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:Driver
+    planned_use: Entity key throughout.
+    notes: ""
+
+  - name: position
+    description: Classified position at the end of the lap
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:Position
+    planned_use: Track position state; terminal points mapping.
+    notes: Position at line crossing, not instantaneous on-track order.
+
+  - name: lap_time
+    description: Total lap time
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:LapTime
+    planned_use: Pace model response variable; wetness index input.
+    notes: Null on many wet/incident laps; check IsAccurate before use.
+
+  - name: sector_times
+    description: Sector 1/2/3 durations
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:Sector1Time
+    planned_use: Intra-lap condition change detection; partial-lap pace.
+    notes: Sector2Time and Sector3Time audited separately in the column report.
+
+  - name: sector_session_times
+    description: Session timestamp at each sector crossing
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:Sector1SessionTime
+    planned_use: Sub-lap temporal resolution for the TemporalGate.
+    notes: Key for aligning decisions to track status changes mid-lap.
+
+  - name: compound
+    description: Tyre compound fitted for the stint
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:Compound
+    planned_use: Action space; pace model fixed effect.
+    notes: Sourced from timing app data; known to be occasionally wrong.
+
+  - name: tyre_age
+    description: Laps completed on the current set
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:TyreLife
+    planned_use: Degradation term in the pace model.
+    notes: Unreliable when a car starts on a used set.
+
+  - name: stint
+    description: Stint index
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:Stint
+    planned_use: Stint segmentation, pit event pairing.
+    notes: ""
+
+  - name: fresh_tyre
+    description: Whether the fitted set was new
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:FreshTyre
+    planned_use: Corrects tyre_age when a used set is fitted.
+    notes: Reliability audited alongside compound.
+
+  - name: pit_in_time
+    description: Session time at pit entry
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:PitInTime
+    planned_use: Pit event detection; track-status join at the moment of entry.
+    notes: ""
+
+  - name: pit_out_time
+    description: Session time at pit exit
+    source: FastF1 session.laps
+    classification: OBSERVED
+    resolver: laps_column:PitOutTime
+    planned_use: Pit lane duration; rejoin timing.
+    notes: ""
+
+  - name: track_status
+    description: Green / yellow / SC / VSC / red flag state
+    source: FastF1 session.track_status
+    classification: OBSERVED
+    resolver: table:track_status
+    planned_use: Neutralization ground truth; time-resolved pit-loss regime.
+    notes: Codes 1,2,4,5,6,7. Per-lap TrackStatus in laps is a concatenation.
+
+  - name: race_control_messages
+    description: Race control notifications
+    source: FastF1 session.race_control_messages
+    classification: OBSERVED
+    resolver: table:race_control_messages
+    planned_use: Corroborate neutralization timing; detect wet-track declarations.
+    notes: Free text; parsing rules must be written and tested, not ad hoc.
+
+  - name: session_status
+    description: Session started / suspended / finished transitions
+    source: FastF1 session.session_status
+    classification: OBSERVED
+    resolver: table:session_status
+    planned_use: Red flag suspension window and restart handling.
+    notes: ""
+
+  - name: air_temperature
+    description: Ambient air temperature
+    source: FastF1 session.weather_data
+    classification: OBSERVED
+    resolver: weather_column:AirTemp
+    planned_use: Wetness index covariate.
+    notes: Single trackside sensor.
+
+  - name: track_temperature
+    description: Track surface temperature
+    source: FastF1 session.weather_data
+    classification: OBSERVED
+    resolver: weather_column:TrackTemp
+    planned_use: Wetness index covariate; drying rate proxy.
+    notes: Single trackside sensor, not spatially resolved.
+
+  - name: humidity
+    description: Relative humidity
+    source: FastF1 session.weather_data
+    classification: OBSERVED
+    resolver: weather_column:Humidity
+    planned_use: Wetness index covariate.
+    notes: ""
+
+  - name: rainfall_flag
+    description: Binary indicator that rain is falling
+    source: FastF1 session.weather_data
+    classification: OBSERVED
+    resolver: weather_column:Rainfall
+    planned_use: Weak covariate to the wetness index. NOT the weather state.
+    notes: Boolean. Provides no intensity information.
+
+  - name: rainfall_intensity
+    description: Rain rate in mm/h or equivalent
+    source: none
+    classification: NOT_AVAILABLE
+    resolver: absent
+    planned_use: None. Replaced by the derived field wetness index W(t).
+    notes: Not present in FastF1 or any free public F1 feed.
+
+  - name: rain_radar
+    description: Spatial precipitation forecast
+    source: none
+    classification: NOT_AVAILABLE
+    resolver: absent
+    planned_use: None.
+    notes: Teams have this. We do not. Central to the project's honesty claim.
+
+  - name: team_weather_forecast
+    description: Proprietary team short-horizon forecast
+    source: none
+    classification: NOT_AVAILABLE
+    resolver: absent
+    planned_use: None.
+    notes: Never to be approximated and presented as available information.
+
+  - name: car_speed
+    description: Car speed channel
+    source: FastF1 session.car_data
+    classification: OBSERVED
+    resolver: car_data:Speed
+    planned_use: Pit lane transit and stationary time reconstruction.
+    notes: ~240 ms sample rate; interpolated by FastF1.
+
+  - name: throttle
+    description: Throttle position
+    source: FastF1 session.car_data
+    classification: OBSERVED
+    resolver: car_data:Throttle
+    planned_use: Diagnostic only in the MVP.
+    notes: ""
+
+  - name: brake
+    description: Brake applied flag
+    source: FastF1 session.car_data
+    classification: OBSERVED
+    resolver: car_data:Brake
+    planned_use: Diagnostic only in the MVP.
+    notes: Boolean channel.
+
+  - name: gear
+    description: Selected gear
+    source: FastF1 session.car_data
+    classification: OBSERVED
+    resolver: car_data:nGear
+    planned_use: Diagnostic only in the MVP.
+    notes: Column is named nGear, not Gear.
+
+  - name: rpm
+    description: Engine speed
+    source: FastF1 session.car_data
+    classification: OBSERVED
+    resolver: car_data:RPM
+    planned_use: Diagnostic only in the MVP.
+    notes: ""
+
+  - name: drs
+    description: DRS state code
+    source: FastF1 session.car_data
+    classification: OBSERVED
+    resolver: car_data:DRS
+    planned_use: Not used. DRS was disabled for much of this wet race.
+    notes: Code semantics are only partially documented by FastF1.
+
+  - name: position_coordinates
+    description: Car X/Y/Z track coordinates
+    source: FastF1 session.pos_data
+    classification: OBSERVED
+    resolver: pos_data:X
+    planned_use: Pit lane geofencing; on-track vs off-track status.
+    notes: 1/10 metre units from 2020 onward; ~220 ms sample rate.
+
+  - name: on_track_status
+    description: OnTrack / OffTrack flag per position sample
+    source: FastF1 session.pos_data
+    classification: OBSERVED
+    resolver: pos_data:Status
+    planned_use: Retirement and off-track detection.
+    notes: ""
+
+  - name: gap_ahead
+    description: Time gap to the car ahead
+    source: derived from line-crossing session times
+    classification: DERIVED
+    resolver: derived:gaps
+    planned_use: Clean-air detection, traffic penalty, rejoin slot.
+    notes: Valid only between cars on the same lap. Failure modes audited.
+
+  - name: gap_behind
+    description: Time gap to the car behind
+    source: derived from line-crossing session times
+    classification: DERIVED
+    resolver: derived:gaps
+    planned_use: Undercut exposure, rejoin slot.
+    notes: Same failure modes as gap_ahead.
+
+  - name: recent_pace
+    description: Robust trailing pace over a short window
+    source: derived from lap times up to time t
+    classification: DERIVED
+    resolver: deferred
+    planned_use: Pace model input and decision-window trigger.
+    notes: Expanding-window only. Introduced in Phase 3.
+
+  - name: pace_trend
+    description: Short-horizon slope of recent pace
+    source: derived from lap times up to time t
+    classification: DERIVED
+    resolver: deferred
+    planned_use: Decision-window trigger.
+    notes: Introduced in Phase 3.
+
+  - name: field_pit_rate
+    description: Fraction of the field pitting in a trailing window
+    source: derived from pit events up to time t
+    classification: DERIVED
+    resolver: deferred
+    planned_use: Decision-window trigger.
+    notes: Introduced in Phase 3.
+
+  - name: wetness_index
+    description: Field-wide track wetness expressed in seconds per lap
+    source: derived from clean-air lap times, corrected
+    classification: DERIVED
+    resolver: derived:wetness_feasibility
+    planned_use: Primary weather state variable, replacing the rainfall boolean.
+    notes: Phase 0 measures only whether the eligible sample is large enough.
+
+  - name: dry_reference_pace
+    description: Circuit dry baseline lap time for the wetness delta
+    source: another Interlagos session from the corpus
+    classification: ESTIMATED
+    resolver: deferred
+    planned_use: Anchor for the wetness index scale.
+    notes: Must come from outside this race. Phase 0.5 dependency.
+
+  - name: pit_lane_duration
+    description: PitOutTime minus PitInTime for a stop
+    source: derived from session.laps
+    classification: DERIVED
+    resolver: derived:pit_events
+    planned_use: Observable component of pit loss.
+    notes: Includes entry, transit, stationary and exit; not decomposed by itself.
+
+  - name: stationary_time
+    description: Time with the car halted in the pit box
+    source: derived from car speed telemetry
+    classification: DERIVED
+    resolver: derived:stationary_probe
+    planned_use: Separating crew performance from pit lane transit.
+    notes: Phase 0 tests detectability only.
+
+  - name: pit_loss_estimate
+    description: Net race time lost relative to staying out
+    source: estimated from a multi-race corpus
+    classification: ESTIMATED
+    resolver: deferred
+    planned_use: Core cost term in the decision engine.
+    notes: Regime-dependent (green / VSC / SC / red). Phase 4.
+
+  - name: neutralization_probability
+    description: Hazard of VSC / SC / red flag in the next k laps
+    source: estimated from a held-out multi-race corpus
+    classification: ESTIMATED
+    resolver: deferred
+    planned_use: Scenario generation in the Monte Carlo engine.
+    notes: Sao Paulo 2024 excluded from estimation. Wide intervals expected.
+
+  - name: traffic_penalty
+    description: Time cost of rejoining in traffic
+    source: field simulator
+    classification: SIMULATED
+    resolver: deferred
+    planned_use: Rejoin evaluation.
+    notes: Cannot be looked up from the historical frame without leakage.
+
+  - name: fuel_load
+    description: Instantaneous fuel mass on board
+    source: none
+    classification: NOT_AVAILABLE
+    resolver: absent
+    planned_use: None directly.
+    notes: Only a burn-rate assumption is used, never a measured value.
+
+  - name: fuel_effect
+    description: Lap time sensitivity to fuel mass
+    source: public literature
+    classification: ASSUMED
+    resolver: deferred
+    planned_use: Fuel correction of lap times before pace modelling.
+    notes: Approximately 0.03 s/lap/kg. Exposed in config; in sensitivity sweep.
+
+  - name: tyre_temperature
+    description: Tyre surface or carcass temperature
+    source: none
+    classification: NOT_AVAILABLE
+    resolver: absent
+    planned_use: None.
+    notes: Not public. Never to be synthesised.
+
+  - name: tyre_pressure
+    description: Tyre inflation pressure
+    source: none
+    classification: NOT_AVAILABLE
+    resolver: absent
+    planned_use: None.
+    notes: Not public.
+
+  - name: brake_temperature
+    description: Brake disc or caliper temperature
+    source: none
+    classification: NOT_AVAILABLE
+    resolver: absent
+    planned_use: None.
+    notes: Not public.

@@ -1,0 +1,22 @@
+# FastF1 cache: large, regenerable, must never be committed
+data/cache/*
+!data/cache/.gitkeep
+
+# Audit outputs are regenerable and are not committed by default. The manifest
+# is the exception: it is the provenance record for whichever run the published
+# docs/DATA_AUDIT.md describes, and without it that document cannot be tied to a
+# library version, a session or a config hash.
+data/audit/*
+!data/audit/.gitkeep
+!data/audit/run_manifest.json
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.DS_Store
+.ipynb_checkpoints/

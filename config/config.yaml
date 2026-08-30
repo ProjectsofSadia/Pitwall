@@ -1,0 +1,78 @@
+# Interlagos Decision Lab - Phase 0 configuration
+#
+# Every threshold used by the audit lives here. Nothing is hard-coded in the
+# audit modules. Phase 0 thresholds are FEASIBILITY thresholds only: they exist
+# to measure how the eligible sample behaves, not to define the final models.
+# Final model parameters are frozen later in docs/PREREGISTRATION.md.
+
+session:
+  year: 2024
+  # FastF1 resolves this by fuzzy match against the event schedule. The loader
+  # logs the resolved event so we can confirm it picked the right one.
+  grand_prix: "Sao Paulo"
+  identifier: "R"          # R = Race
+  load:
+    laps: true
+    telemetry: true
+    weather: true
+    messages: true
+
+paths:
+  cache_dir: "data/cache"
+  audit_dir: "data/audit"
+  docs_dir: "docs"
+
+audit:
+  # Drivers sampled for the telemetry channel audit. Kept small: the full
+  # telemetry download is already cached by session.load(telemetry=True), but
+  # per-driver processing is expensive and Phase 0 only needs a representative
+  # sample. Chosen to span teams and to include cars involved in the
+  # high-attrition phase, NOT chosen for their strategic outcome.
+  telemetry_sample_drivers: ["VER", "NOR", "OCO"]
+
+  # Number of pit stops probed with car telemetry to test whether a stationary
+  # segment is detectable. Sampled deterministically (first N by session time).
+  stationary_probe_n_stops: 8
+
+  # Speed below which a car is treated as stationary in the pit box probe.
+  # km/h. Feasibility threshold only.
+  stationary_speed_kmh: 5.0
+
+  # Clean-air threshold for the wetness-index feasibility count. Seconds.
+  # Reported at several values so we can see sensitivity of N_eligible before
+  # committing to one in Phase 3.
+  clean_air_gap_thresholds_s: [1.5, 2.0, 3.0]
+
+  # Compounds treated as "wet-capable" when counting the eligible field.
+  wet_compounds: ["INTERMEDIATE", "WET"]
+
+  # STRICT eligibility: per-lap TrackStatus exactly "1", meaning every status
+  # sample during the lap was green. Retained for comparison only. The Phase 0
+  # run showed this discards laps whose only defect is a 3-second local yellow
+  # in one sector (laps 4, 36, 40, 41, 42, 43 lost 15-18 eligible cars each).
+  green_lap_track_status: ["1"]
+
+  # RELAXED eligibility: exclude a lap only if its TrackStatus string contains a
+  # neutralization code. Yellow is tolerated, matching FastF1's own IsAccurate
+  # criterion, which accepts "1", "12", "2", "21". Proper yellow handling needs
+  # SectorNSessionTime to establish whether the car was in the affected sector,
+  # which is Phase 3 work.
+  #   4 = Safety Car, 5 = Red Flag, 6 = VSC deployed, 7 = VSC ending
+  neutralization_track_status_codes: ["4", "5", "6", "7"]
+
+  # Declared floor for the W(t) observation model. Below this the field median
+  # is not reported as an observation; the state is propagated without one.
+  min_eligible_cars_for_wetness: 4
+
+  # Pit-lane durations above this are the red-flag suspension, not a stop, and
+  # are excluded from any duration distribution. The Phase 0 run measured green
+  # and VSC stops at 24.6-26.6 s and suspension "stops" at 1283-1426 s, so the
+  # threshold sits in a gap three orders of magnitude wide.
+  max_plausible_pit_lane_duration_s: 300.0
+
+# No randomness is used in Phase 0. The seed is declared anyway so that the
+# reproducibility contract is established from the first commit.
+random_seed: 42
+
+logging:
+  level: "INFO"

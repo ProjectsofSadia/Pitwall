@@ -1,0 +1,110 @@
+{
+  "load_report": {
+    "requested": {
+      "spec": "2024 Sao Paulo [R]",
+      "laps": true,
+      "telemetry": true,
+      "weather": true,
+      "messages": true
+    },
+    "resolved_event_name": "S\u00e3o Paulo Grand Prix",
+    "resolved_round": 21,
+    "resolved_location": "S\u00e3o Paulo",
+    "resolved_country": "Brazil",
+    "resolved_event_date": "2024-11-03 00:00:00",
+    "session_name": "Race",
+    "session_date_utc": "2024-11-03 15:30:00",
+    "total_laps": 69,
+    "n_drivers": 19,
+    "fastf1_version": "3.8.1",
+    "pandas_version": "2.3.3",
+    "numpy_version": "2.4.4",
+    "python_version": "3.13.5",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "loaded_at_utc": "2026-08-30T22:34:47.390409+00:00",
+    "cache_dir": "C:\\Users\\sadia\\Downloads\\interlagos-decision-lab-phase0\\interlagos-decision-lab\\data\\cache",
+    "table_row_counts": {
+      "laps": 1135,
+      "weather_data": 201,
+      "track_status": 31,
+      "race_control_messages": 107,
+      "session_status": 7,
+      "results": 20,
+      "car_data": 20,
+      "pos_data": 20
+    },
+    "warnings": [],
+    "fastf1_log_warnings": [
+      "No lap data for driver 23",
+      "Failed to perform lap accuracy check - all laps marked as inaccurate (driver 23)"
+    ],
+    "t0_date": "2024-11-03 14:38:02.746000"
+  },
+  "config_path": "config\\config.yaml",
+  "config_sha256": "acbb6f2ac236d7d6936c3774d4ce1406d1b2d18b0f21dbe092e628f924febbba",
+  "registry_path": "config\\variable_registry.yaml",
+  "registry_sha256": "e0eb4e443d71538991dd37a9211f8e2faff8bd77bb80bcec5cdd9d8ba4ba40da",
+  "offline_mode": false,
+  "rows_written": {
+    "session_columns": 75,
+    "missingness": 75,
+    "expected_columns": 39,
+    "driver_lap_counts": 19,
+    "lap_track_status_distribution": 16,
+    "track_status": 31,
+    "session_status": 7,
+    "race_control_messages": 107,
+    "race_control_summary": 11,
+    "weather_audit": 8,
+    "weather_sampling": 1,
+    "gaps": 1135,
+    "gap_diagnostics": 69,
+    "wetness_feasibility": 69,
+    "pit_events": 36,
+    "stationary_probe": 8,
+    "telemetry_audit": 6,
+    "data_classification": 47
+  },
+  "rainfall_facts": {
+    "available": true,
+    "rainfall_present": true,
+    "rainfall_dtype": "bool",
+    "rainfall_is_bool_dtype": true,
+    "rainfall_unique_values": [
+      "False",
+      "True"
+    ],
+    "rainfall_n_unique": 2,
+    "rainfall_true_frac": 0.582089552238806,
+    "rainfall_intensity_channel_present": false
+  },
+  "session_time_reference_t0_date": "2024-11-03 14:38:02.746000",
+  "race_control_time_axis_resolved": true,
+  "drivers_with_zero_accurate_laps": [
+    "STR"
+  ],
+  "n_drivers_in_laps": 19,
+  "n_drivers_in_results": 20,
+  "pos_data_keys_not_in_laps": [
+    "23"
+  ],
+  "n_pit_stops_total": 36,
+  "n_pit_stops_usable_for_duration_model": 18,
+  "n_pit_stops_straddling_status_change": 19,
+  "n_laps_wetness_observable_relaxed": 58,
+  "laps_wetness_not_observable_relaxed": [
+    1,
+    27,
+    28,
+    30,
+    31,
+    32,
+    33,
+    39,
+    40,
+    41,
+    42
+  ],
+  "n_registry_mismatches": 0,
+  "missing_expected_columns": []
+}
