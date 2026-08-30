@@ -296,5 +296,3 @@ MIT License.
 Race-session data is retrieved at runtime through FastF1 and is not distributed with this repository.
 
 Pitwall is an independent research project and is not affiliated with Formula 1, the FIA, or any Formula One team.
-
-AI-assisted development is documented in [`docs/AI_ASSISTANCE.md`](docs/AI_ASSISTANCE.md).
