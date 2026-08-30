@@ -1,65 +1,300 @@
 # Pitwall
 
-Uncertainty-aware race strategy decision support from public F1 timing data. Case study: the 2024 Formula 1 São Paulo Grand Prix.
+**Uncertainty-Aware Race Strategy Decision Support for Formula One**
 
-Status: Phase 0, data audit. There is no decision engine yet.
+Pitwall is a research-oriented motorsport engineering project for evaluating race-strategy decisions under incomplete information. The flagship case study reconstructs the 2024 São Paulo Grand Prix and asks a specific engineering question:
 
-Research question
+> Given only the information available at decision time, should a race engineer stay out, pit for fresh intermediates, or switch to full wets?
 
-When conditions are changing and future weather and neutralization are unknown, which action should a race engineer prefer, and how confident can that preference be given only what was knowable at the time?
+The system is designed around strict temporal causality, probabilistic simulation, uncertainty quantification, and counterfactual evaluation rather than hindsight-based race analysis.
 
-The project separates decision quality from outcome quality. A defensible decision can produce a poor result and a poor one can be rescued by luck. It is allowed to conclude that the actions taken in this race were right, wrong, or indistinguishable under the available uncertainty.
+---
 
-What Phase 0 found
+## Engineering Objective
 
-The audit ran against the real session and changed the design three times.
+Race strategy decisions are made before future weather, neutralizations, traffic evolution, and competitor actions are known. Pitwall models that decision environment explicitly.
 
-Rain intensity does not exist in public data. FastF1's rainfall channel is boolean, once a minute, from one sensor. Weather state is now a derived index measured from the field's clean-air pace.
-That index is unobservable at the decision points. It is estimable on 58 of 69 laps; the eleven gaps are all neutralized laps, including the window this project exists to study. So it becomes a state propagated across neutralizations with growing uncertainty, not a measurement.
-Pit loss must be modelled on session time. On lap 28 four cars pitted under three different neutralization regimes, two of them entering the pit lane with under four seconds of VSC left.
+The project separates:
 
-Full measurements, limitations and the per-component feasibility verdict: docs/DATA_AUDIT.md.
+- **Decision quality** — whether an action was defensible using information available at the time
+- **Outcome quality** — what happened afterward
+- **Uncertainty** — how sensitive the preferred action is to plausible future race states
 
-Method commitments
+A strategy can therefore produce a poor result while still being rational ex ante, or succeed because of events that could not reasonably have been predicted.
 
-Fixed before implementation.
+---
 
-No future information. Decisions at time t use [0, t] only, through a temporal gate rather than a raw session.
-Compound choice is in the action space: stay out, fresh intermediates, full wets.
-Utility is E[points] - λ·CVaR₀.₂(shortfall), one risk parameter, reported across a grid.
-Common random numbers: one scenario per replication, evaluated against every action.
-Confidence is the fraction of replications in which an action maximises utility, reported with its Monte Carlo standard error.
-São Paulo 2024 is held out of every prior and calibration step.
-docs/PREREGISTRATION.md freezes the methodology before any recommendation for this race is generated.
-Data
+## Current Status
 
-FastF1 only, free and public. No proprietary or team-internal data is used and none is synthesised. Tyre temperatures and pressures, fuel loads, brake temperatures, team forecasts and rain radar are unavailable and are never approximated.
+**Phase 0 — Data and Method Feasibility: Complete**
 
-Running it
-bash
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+The first stage audited the public-data pipeline before any strategy model was allowed to generate recommendations.
+
+The audit validated:
+
+- FastF1 timing and telemetry availability
+- session-time race-state reconstruction
+- weather-channel limitations
+- pit-event reconstruction
+- track-status timing
+- clean-air wetness-state feasibility
+- gap reconstruction
+- data provenance and variable classification
+
+See [`docs/DATA_AUDIT.md`](docs/DATA_AUDIT.md) for the detailed feasibility assessment.
+
+---
+
+## Key Findings from the Data Audit
+
+### Public rainfall data is not rain intensity
+
+FastF1 exposes rainfall as a boolean channel sampled approximately once per minute from a trackside source. It cannot support a continuous rain-intensity model.
+
+Pitwall therefore derives a **field wetness state** primarily from observed race performance rather than treating the rainfall flag as a physical intensity measurement.
+
+### Wetness cannot always be directly observed
+
+Clean-air field pace can estimate wetness during much of the race, but neutralized periods remove the observations required for direct inference. During these windows the state must therefore be propagated forward with increasing uncertainty.
+
+### Pit loss is time-dependent
+
+Pit-loss evaluation cannot be treated as a constant lap-level penalty. At São Paulo, cars entered the pit lane under materially different neutralization conditions within the same lap. Pit-loss modeling therefore operates on **session time**, with track-status transitions resolved explicitly.
+
+These findings changed the architecture before model implementation rather than being patched into the system afterward.
+
+---
+
+## Decision Framework
+
+At a decision time `t`, the candidate actions are:
+
+1. **Stay out** on the current intermediate tyre
+2. **Pit for fresh intermediates**
+3. **Pit for full wet tyres**
+
+Only information available in the interval `[0, t]` is accessible to the decision system. Future observations from the recorded race are prohibited. A dedicated temporal gate will enforce this constraint throughout the pipeline.
+
+---
+
+## Risk-Aware Utility
+
+Candidate strategies are evaluated using expected championship value together with downside risk:
+
+`U(a) = E[points(a)] - λ · CVaR₀.₂(shortfall(a))`
+
+Candidate actions are evaluated across multiple values of risk aversion using paired Monte Carlo simulation.
+
+Pitwall will report:
+
+- expected outcome distributions
+- probability each action is optimal
+- Monte Carlo standard error
+- confidence intervals
+- ranking stability under parameter uncertainty
+- sensitivity to risk preference
+
+---
+
+## Simulation Methodology
+
+Each Monte Carlo replication represents one plausible future race state. The same realization of weather evolution, neutralization timing, competitor behavior, pace variation, pit stationary time, and traffic uncertainty is evaluated against every candidate strategy.
+
+This **common-random-numbers (CRN)** design enables paired comparisons between actions and reduces Monte Carlo noise in strategy ranking.
+
+---
+
+## Validation Philosophy
+
+São Paulo 2024 is the flagship case study, not the calibration dataset. The race is held out from prior fitting, model selection, calibration, and parameter tuning.
+
+Historical races will form the calibration corpus. Before the decision engine is allowed to evaluate the São Paulo strategy window, the methodology will be frozen in [`docs/PREREGISTRATION.md`](docs/PREREGISTRATION.md).
+
+Validation will focus on:
+
+- forced-scenario replay fidelity
+- pace-model calibration
+- neutralization-probability calibration
+- probabilistic forecast quality
+- Monte Carlo convergence and seed stability
+- comparison with naive strategy baselines
+- sensitivity analysis
+- ablation testing
+- counterfactual regret
+
+Agreement with the strategy chosen by an actual Formula One team is **not** treated as model accuracy.
+
+---
+
+## Data Integrity
+
+Pitwall uses public FastF1 data only. The project does **not** claim access to tyre carcass or surface temperatures, tyre pressures, fuel loads, brake temperatures, proprietary tyre models, team weather forecasts, radar, internal strategy tools, or engineering sensor channels unavailable publicly.
+
+Unavailable measurements are documented rather than fabricated.
+
+Variables are classified as:
+
+- `OBSERVED`
+- `DERIVED`
+- `ESTIMATED`
+- `ASSUMED`
+- `SIMULATED`
+
+This provenance is maintained throughout the modeling pipeline.
+
+---
+
+## Architecture
+
+```text
+FastF1 Session Data
+        |
+        v
+Data Validation + Provenance Audit
+        |
+        v
+Temporal Gate (information <= t only)
+        |
+        v
+Chronological Race Reconstruction
+        |
+        +--> Wetness Model
+        +--> Pace Model
+        +--> Pit-Loss Model
+        +--> Neutralization Model
+                    |
+                    v
+              Field Simulator
+                    |
+                    v
+         Monte Carlo Decision Engine
+                    |
+                    v
+       Strategy Utility + Risk + Uncertainty
+```
+
+---
+
+## Repository Structure
+
+```text
+Pitwall/
+├── config/          # model and audit configuration
+├── data/            # generated audit artefacts and cache
+├── docs/            # methodology and research documentation
+├── scripts/         # reproducible pipeline entry points
+├── src/             # application and modeling code
+├── tests/           # unit, regression and integration tests
+├── pyproject.toml
+└── README.md
+```
+
+Planned modeling modules include dedicated temporal, modeling, simulation, and evaluation components for wetness, pace, pit loss, neutralization risk, field simulation, overtaking, restart behavior, and counterfactual regret.
+
+---
+
+## Reproducing Phase 0
+
+### Windows PowerShell
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+python -m pip install --upgrade pip
 pip install -e ".[dev]"
 
-python -m pytest -m "not network"     # 57 offline tests
-python scripts/run_data_audit.py      # first run downloads and caches the session
-python -m pytest                      # adds the integration tests
+python -m pytest -m "not network"
+python scripts\run_data_audit.py
+python -m pytest
+```
 
-Outputs land in data/audit/. docs/DATA_AUDIT.md is generated from them, with interpretation injected from docs/audit_narrative.md so reruns refresh the tables without overwriting the analysis.
+### macOS / Linux
 
-Structure
-config/     configuration and the variable registry
-src/data/   session loading and audit functions
-scripts/    Phase 0 entry point
-tests/      offline and integration tests
-docs/       data audit, narrative, AI assistance disclosure
-Limitations
+```bash
+python -m venv .venv
+source .venv/bin/activate
 
-Public telemetry only. Weather from one trackside sensor with no intensity or spatial resolution. Tyre state unobservable. Fuel effect assumed. Counterfactual outcomes can never be verified, so validation targets component calibration, forced-scenario replay fidelity, robustness of the action ranking, and comparison against naive baselines. Full list in the data audit.
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
 
-Roadmap
+python -m pytest -m "not network"
+python scripts/run_data_audit.py
+python -m pytest
+```
 
-Phase 0 audit (done) → 0.5 multi-race corpus → 1 acquisition → 2 race reconstruction → 3 features and decision windows → 3.5 field simulator and replay fidelity → 4 pit loss and pace → 5 uncertainty, then preregistration → 6 Monte Carlo engine → 7 replay → 8 counterfactuals → 9 validation → 10 visualization → 11 case study.
+Generated audit artefacts are written to `data/audit/`. The data-audit report is regenerated from those outputs so measurements remain tied to the executable pipeline.
 
-Licence
+---
 
-MIT, see LICENSE. Contains no F1 data; sessions are fetched at runtime via FastF1. Unofficial, not associated with Formula 1, the FIA or any team. AI assistance disclosed in docs/AI_ASSISTANCE.md
+## Research Roadmap
+
+### Completed
+
+- [x] Phase 0 — data feasibility and provenance audit
+- [x] automated audit validation
+- [x] race-control time-reference validation
+- [x] wetness feasibility analysis
+- [x] pit-event reconstruction audit
+
+### In Development
+
+- [ ] multi-race historical calibration corpus
+- [ ] temporal information gate
+- [ ] chronological race reconstruction
+- [ ] wetness-state estimator
+- [ ] pace model
+- [ ] pit-loss model
+- [ ] neutralization hazard model
+- [ ] field simulator
+- [ ] forced-scenario replay validation
+- [ ] methodology preregistration
+- [ ] common-random-numbers Monte Carlo engine
+- [ ] counterfactual strategy evaluation
+- [ ] sensitivity and ablation analysis
+
+---
+
+## Design Principles
+
+**No hindsight.** Future race observations cannot influence historical decisions.
+
+**No synthetic proprietary telemetry.** Unavailable Formula One engineering channels remain unavailable.
+
+**Simple models before complex models.** Additional complexity must improve out-of-sample performance or calibration.
+
+**Uncertainty is part of the result.** A strategy recommendation without uncertainty is incomplete.
+
+**Replay before counterfactuals.** The simulator must reproduce constrained historical scenarios before being trusted for alternative futures.
+
+**Indeterminate is a valid conclusion.** The system is not required to prove that one historical strategy was correct.
+
+---
+
+## Limitations
+
+Public Formula One telemetry cannot reproduce the information environment available to an actual race team. Important latent variables remain unavailable, including detailed tyre state, fuel mass, local rainfall distribution, radar forecasts, driver feedback, and proprietary vehicle models.
+
+The project therefore evaluates **decision-making from public information**, not the full capability of an operational Formula One strategy group.
+
+Counterfactual race outcomes are inherently unobservable. Validation consequently targets model calibration, replay fidelity, robustness, and comparative decision quality rather than claiming ground-truth counterfactual accuracy.
+
+---
+
+## Technology
+
+**Python · FastF1 · pandas · NumPy · SciPy · scikit-learn · probabilistic simulation · Monte Carlo methods · statistical modeling · pytest**
+
+MATLAB-based analysis is planned for selected simulation, sensitivity, and uncertainty-analysis workflows.
+
+---
+
+## Licence
+
+MIT License.
+
+Race-session data is retrieved at runtime through FastF1 and is not distributed with this repository.
+
+Pitwall is an independent research project and is not affiliated with Formula 1, the FIA, or any Formula One team.
+
+AI-assisted development is documented in [`docs/AI_ASSISTANCE.md`](docs/AI_ASSISTANCE.md).
